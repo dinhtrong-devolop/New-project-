@@ -1,0 +1,14 @@
+@extends('layouts.admin')
+
+@section('title', 'Người dùng')
+@section('page_title', 'Quản lý người dùng')
+
+@section('content')
+    <div class="admin-page-head"><div><span class="admin-eyebrow">CUSTOMERS</span><h1>Người dùng</h1><p>Thêm, sửa, xóa và quản lý vai trò, trạng thái cùng lịch sử khách hàng.</p></div><a href="{{ route('admin.users.create') }}" class="admin-button admin-button--primary"><x-icon name="plus" :size="16" /> Thêm người dùng</a></div>
+    <section class="admin-panel">
+        <form method="GET" class="admin-filterbar admin-filterbar--users"><div class="admin-search"><x-icon name="search" :size="17" /><input name="search" value="{{ request('search') }}" placeholder="Tên, email hoặc số điện thoại"></div><select name="role"><option value="">Tất cả vai trò</option>@foreach(App\Enums\UserRole::cases() as $role)<option value="{{ $role->value }}" @selected(request('role') === $role->value)>{{ $role->label() }}</option>@endforeach</select><select name="state"><option value="">Tất cả trạng thái</option><option value="active" @selected(request('state') === 'active')>Hoạt động</option><option value="locked" @selected(request('state') === 'locked')>Đã khóa</option></select><button class="admin-button">Tìm kiếm</button></form>
+        <div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Người dùng</th><th>Vai trò</th><th>Số dư</th><th>Đơn hàng</th><th>Nạp tiền</th><th>Trạng thái</th><th>Tham gia</th><th></th></tr></thead><tbody>
+            @forelse($users as $user)<tr><td><div class="admin-user-cell"><span>{{ str($user->name)->substr(0, 2)->upper() }}</span><div><strong>{{ $user->name }}</strong><small>{{ $user->email }}</small></div></div></td><td><span class="admin-badge admin-badge--{{ $user->role->value }}">{{ $user->role->label() }}</span></td><td><strong>{{ number_format($user->wallet?->balance ?? 0, 0, ',', '.') }}₫</strong></td><td>{{ $user->orders_count }}</td><td>{{ $user->card_deposits_count }}</td><td><span class="admin-badge {{ $user->locked_at ? 'admin-badge--failed' : 'admin-badge--active' }}">{{ $user->locked_at ? 'Đã khóa' : 'Hoạt động' }}</span></td><td>{{ $user->created_at->format('d/m/Y') }}</td><td><div class="admin-row-actions"><a href="{{ route('admin.users.show', $user) }}">Chi tiết</a><a href="{{ route('admin.users.edit', $user) }}">Sửa</a>@unless($user->is(auth()->user()))<form action="{{ route('admin.users.destroy', $user) }}" method="POST" onsubmit="return confirm('Bạn chắc chắn muốn xóa người dùng này?')">@csrf @method('DELETE')<button type="submit">Xóa</button></form>@endunless</div></td></tr>@empty<tr><td colspan="8"><div class="admin-empty">Không tìm thấy người dùng phù hợp.</div></td></tr>@endforelse
+        </tbody></table></div><div class="admin-pagination">{{ $users->links() }}</div>
+    </section>
+@endsection

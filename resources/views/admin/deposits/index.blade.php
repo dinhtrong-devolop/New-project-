@@ -1,0 +1,11 @@
+@extends('layouts.admin')
+
+@section('title', 'Giao dịch nạp')
+@section('page_title', 'Giao dịch nạp tiền')
+
+@section('content')
+    <div class="admin-page-head"><div><span class="admin-eyebrow">PAYMENT OPERATIONS</span><h1>Giao dịch nạp thẻ</h1><p>Theo dõi phản hồi nhà cung cấp; mã thẻ và serial đầy đủ không được hiển thị.</p></div></div>
+    <section class="admin-panel"><form method="GET" class="admin-filterbar"><div class="admin-search"><x-icon name="search" :size="17" /><input name="search" value="{{ request('search') }}" placeholder="Mã yêu cầu hoặc mã giao dịch"></div><select name="status"><option value="">Tất cả trạng thái</option>@foreach(App\Enums\CardDepositStatus::cases() as $status)<option value="{{ $status->value }}" @selected(request('status') === $status->value)>{{ $status->label() }}</option>@endforeach</select><button class="admin-button">Lọc giao dịch</button></form><div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Mã yêu cầu</th><th>Khách hàng</th><th>Nhà mạng</th><th>Số sê-ri</th><th>Khai báo</th><th>Thực nhận</th><th>Trạng thái</th><th>Thời gian</th></tr></thead><tbody>
+        @forelse($deposits as $deposit)<tr><td><code>{{ $deposit->request_id }}</code><small class="admin-table-sub">{{ $deposit->provider_transaction_id }}</small></td><td>{{ $deposit->user->email }}</td><td>{{ $deposit->provider }}</td><td>••••{{ $deposit->serial_last_four }}</td><td>{{ number_format($deposit->declared_amount, 0, ',', '.') }}₫</td><td>{{ $deposit->received_amount === null ? '—' : number_format($deposit->received_amount, 0, ',', '.').'₫' }}</td><td><span class="admin-badge admin-badge--{{ $deposit->status->value }}">{{ $deposit->status->label() }}</span></td><td>{{ $deposit->created_at->format('d/m/Y H:i') }}</td></tr>@empty<tr><td colspan="8"><div class="admin-empty">Chưa có giao dịch nạp tiền.</div></td></tr>@endforelse
+    </tbody></table></div><div class="admin-pagination">{{ $deposits->links() }}</div><div class="admin-security-note"><x-icon name="shield" :size="20" /><div><strong>Dữ liệu thẻ được bảo vệ</strong><p>Hệ thống chỉ lưu hash, dữ liệu mã hóa cần thiết và bốn số cuối serial cho mục đích đối soát.</p></div></div></section>
+@endsection

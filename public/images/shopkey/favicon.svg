@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="ShopKey">
+  <defs>
+    <linearGradient id="a" x1="8" y1="8" x2="56" y2="58" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#20d39b"/>
+      <stop offset="1" stop-color="#00a8d6"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="17" fill="#07111f"/>
+  <path d="M17 28.5 32 19l15 9.5v18L32 55l-15-8.5v-18Z" fill="url(#a)"/>
+  <path d="M24 31.5h16v5H24zM29.5 26h5v16h-5z" fill="#fff"/>
+  <circle cx="45.5" cy="18.5" r="6.5" fill="#f6c344"/>
+  <path d="m43 18.5 1.7 1.8 3.4-3.7" fill="none" stroke="#07111f" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

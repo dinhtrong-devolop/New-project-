@@ -1,0 +1,26 @@
+<?php
+
+return [
+    'VCB' => 'Vietcombank',
+    'BIDV' => 'BIDV',
+    'VIETINBANK' => 'VietinBank',
+    'AGRIBANK' => 'Agribank',
+    'ACB' => 'ACB',
+    'MB' => 'MB Bank',
+    'TCB' => 'Techcombank',
+    'TPB' => 'TPBank',
+    'VPB' => 'VPBank',
+    'STB' => 'Sacombank',
+    'HDB' => 'HDBank',
+    'VIB' => 'VIB',
+    'OCB' => 'OCB',
+    'MSB' => 'MSB',
+    'LPB' => 'LPBank',
+    'SHB' => 'SHB',
+    'SEAB' => 'SeABank',
+    'EIB' => 'Eximbank',
+    'ABB' => 'ABBank',
+    'NAB' => 'Nam A Bank',
+    'BAB' => 'Bac A Bank',
+    'VCCB' => 'Viet Capital Bank',
+];

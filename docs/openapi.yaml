@@ -1,0 +1,789 @@
+openapi: 3.1.0
+info:
+  title: ShopKey Mobile API
+  version: 1.1.0
+  description: Versioned REST API used by ShopKey mobile clients.
+servers:
+  - url: https://your-domain.example/api/v1
+    description: Production
+  - url: http://keymmo.test:8888/api/v1
+    description: Local Laragon
+tags:
+  - name: Authentication
+  - name: Catalog
+  - name: Cart
+  - name: Orders
+  - name: Wallet
+  - name: Profile
+  - name: App
+  - name: Content
+  - name: Notifications
+  - name: Support
+  - name: Wishlist
+paths:
+  /register:
+    post:
+      tags: [Authentication]
+      summary: Create a customer and Sanctum token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/RegisterInput'
+                - type: object
+                  properties:
+                    device_name: { type: string, example: android-phone }
+      responses:
+        '201': { $ref: '#/components/responses/AuthSuccess' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /login:
+    post:
+      tags: [Authentication]
+      summary: Create a Sanctum token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password, device_name]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string, format: password }
+                device_name: { type: string, example: ios-phone }
+      responses:
+        '200': { $ref: '#/components/responses/AuthSuccess' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /logout:
+    post:
+      tags: [Authentication]
+      security: [{ bearerAuth: [] }]
+      summary: Revoke the current token
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+  /categories:
+    get:
+      tags: [Catalog]
+      summary: List active categories
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /products:
+    get:
+      tags: [Catalog]
+      summary: Search and paginate active products
+      parameters:
+        - { name: search, in: query, schema: { type: string } }
+        - { name: category, in: query, schema: { type: string } }
+        - { name: min_price, in: query, schema: { type: integer, minimum: 0 } }
+        - { name: max_price, in: query, schema: { type: integer, minimum: 0 } }
+        - { name: type, in: query, schema: { type: string, enum: [license_key, account, gift_card, subscription, other] } }
+        - { name: rating, in: query, schema: { type: integer, minimum: 1, maximum: 5 } }
+        - { name: in_stock, in: query, schema: { type: boolean } }
+        - { name: sort, in: query, schema: { type: string, enum: [featured, best_selling, latest, price_asc, price_desc, rating] } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1 } }
+        - { name: per_page, in: query, schema: { type: integer, minimum: 1, maximum: 50 } }
+      responses:
+        '200':
+          description: Paginated product list
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/Product' }
+                      meta: { $ref: '#/components/schemas/Pagination' }
+  /products/{slug}:
+    get:
+      tags: [Catalog]
+      summary: Get a product
+      parameters:
+        - { name: slug, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '404': { description: Product not found }
+  /cart:
+    get:
+      tags: [Cart]
+      security: [{ bearerAuth: [] }]
+      summary: Get the current cart and totals
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+    post:
+      tags: [Cart]
+      security: [{ bearerAuth: [] }]
+      summary: Add a product to the cart
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [product_id, quantity]
+              properties:
+                product_id: { type: integer }
+                quantity: { type: integer, minimum: 1, maximum: 100 }
+      responses:
+        '201': { $ref: '#/components/responses/Success' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /cart/{id}:
+    patch:
+      tags: [Cart]
+      security: [{ bearerAuth: [] }]
+      summary: Update a cart quantity
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [quantity]
+              properties:
+                quantity: { type: integer, minimum: 1, maximum: 100 }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '404': { description: Cart item not found }
+    delete:
+      tags: [Cart]
+      security: [{ bearerAuth: [] }]
+      summary: Remove a cart item
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /cart/voucher:
+    post:
+      tags: [Cart]
+      security: [{ bearerAuth: [] }]
+      summary: Apply a voucher
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [voucher]
+              properties:
+                voucher: { type: string, example: WELCOME10 }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [Cart]
+      security: [{ bearerAuth: [] }]
+      summary: Remove the voucher
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /checkout:
+    post:
+      tags: [Orders]
+      security: [{ bearerAuth: [] }]
+      summary: Pay by wallet and deliver inventory atomically
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [payment_method]
+              properties:
+                payment_method: { type: string, const: wallet }
+                customer_note: { type: [string, 'null'], maxLength: 1000 }
+      responses:
+        '201': { $ref: '#/components/responses/Success' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /orders:
+    get:
+      tags: [Orders]
+      security: [{ bearerAuth: [] }]
+      summary: List the authenticated customer's orders
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /orders/{order_code}:
+    get:
+      tags: [Orders]
+      security: [{ bearerAuth: [] }]
+      summary: Get an owned order and delivered credentials
+      parameters:
+        - { name: order_code, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '403': { description: The order belongs to another user }
+  /reviews:
+    post:
+      tags: [Orders]
+      security: [{ bearerAuth: [] }]
+      summary: Review a product from a completed owned order
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [order_item_id, rating]
+              properties:
+                order_item_id: { type: integer }
+                rating: { type: integer, minimum: 1, maximum: 5 }
+                comment: { type: [string, 'null'], maxLength: 2000 }
+      responses:
+        '201': { $ref: '#/components/responses/Success' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /wallet:
+    get:
+      tags: [Wallet]
+      security: [{ bearerAuth: [] }]
+      summary: Get wallet balance
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /wallet/transactions:
+    get:
+      tags: [Wallet]
+      security: [{ bearerAuth: [] }]
+      summary: List wallet ledger entries
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /deposits:
+    get:
+      tags: [Wallet]
+      security: [{ bearerAuth: [] }]
+      summary: List the customer's card deposits
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /deposits/card:
+    post:
+      tags: [Wallet]
+      security: [{ bearerAuth: [] }]
+      summary: Submit a prepaid card to Naptudong
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [provider, amount, serial, code]
+              properties:
+                provider: { type: string, enum: [VIETTEL, VINAPHONE, MOBIFONE] }
+                amount: { type: integer, example: 100000 }
+                serial: { type: string }
+                code: { type: string }
+      responses:
+        '201': { $ref: '#/components/responses/Success' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /profile:
+    get:
+      tags: [Profile]
+      security: [{ bearerAuth: [] }]
+      summary: Get profile
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+    put:
+      tags: [Profile]
+      security: [{ bearerAuth: [] }]
+      summary: Update profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email]
+              properties:
+                name: { type: string, maxLength: 120 }
+                email: { type: string, format: email }
+                phone: { type: [string, 'null'] }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /app-config:
+    get:
+      tags: [App]
+      summary: Get branding, support, version, maintenance and footer configuration
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /home:
+    get:
+      tags: [App]
+      summary: Get categories, featured, best-selling, new and promoted products
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /faqs:
+    get:
+      tags: [Content]
+      summary: List frequently asked questions
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /policies:
+    get:
+      tags: [Content]
+      summary: List application policies
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /pages/{slug}:
+    get:
+      tags: [Content]
+      summary: Get a content page
+      parameters:
+        - { name: slug, in: path, required: true, schema: { type: string, enum: [terms, privacy, warranty, refund] } }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '404': { description: Page not found }
+  /forgot-password:
+    post:
+      tags: [Authentication]
+      summary: Send password reset instructions without exposing account existence
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string, format: email }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /reset-password:
+    post:
+      tags: [Authentication]
+      summary: Reset a password with a password broker token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, token, password, password_confirmation]
+              properties:
+                email: { type: string, format: email }
+                token: { type: string }
+                password: { type: string, format: password }
+                password_confirmation: { type: string, format: password }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /email/verify/{id}/{hash}:
+    get:
+      tags: [Authentication]
+      summary: Verify an email address using the signed link sent by email
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+        - { name: hash, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '403': { description: Invalid or expired signed URL }
+  /email/verification-notification:
+    post:
+      tags: [Authentication]
+      security: [{ bearerAuth: [] }]
+      summary: Resend the email verification link
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /change-password:
+    put:
+      tags: [Authentication]
+      security: [{ bearerAuth: [] }]
+      summary: Change password and revoke other access tokens
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [current_password, password, password_confirmation]
+              properties:
+                current_password: { type: string, format: password }
+                password: { type: string, format: password }
+                password_confirmation: { type: string, format: password }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /sessions:
+    get:
+      tags: [Authentication]
+      security: [{ bearerAuth: [] }]
+      summary: List access-token sessions
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /sessions/{token_id}:
+    delete:
+      tags: [Authentication]
+      security: [{ bearerAuth: [] }]
+      summary: Revoke an owned access-token session
+      parameters:
+        - { name: token_id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '404': { description: Session not found }
+  /logout-all:
+    post:
+      tags: [Authentication]
+      security: [{ bearerAuth: [] }]
+      summary: Revoke all access tokens
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /devices:
+    post:
+      tags: [Notifications]
+      security: [{ bearerAuth: [] }]
+      summary: Register or refresh a push notification token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, platform]
+              properties:
+                token: { type: string, maxLength: 255 }
+                platform: { type: string, enum: [android, ios, web] }
+                device_name: { type: [string, 'null'], maxLength: 120 }
+      responses:
+        '201': { $ref: '#/components/responses/Success' }
+  /devices/{id}:
+    delete:
+      tags: [Notifications]
+      security: [{ bearerAuth: [] }]
+      summary: Remove an owned push notification device
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /notifications:
+    get:
+      tags: [Notifications]
+      security: [{ bearerAuth: [] }]
+      summary: List notifications and unread count
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /notifications/{id}/read:
+    patch:
+      tags: [Notifications]
+      security: [{ bearerAuth: [] }]
+      summary: Mark an owned notification as read
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '404': { description: Notification not found }
+  /notifications/read-all:
+    post:
+      tags: [Notifications]
+      security: [{ bearerAuth: [] }]
+      summary: Mark all notifications as read
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /products/trending:
+    get:
+      tags: [Catalog]
+      summary: List trending products
+      parameters:
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 30 } }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /products/recently-viewed:
+    get:
+      tags: [Catalog]
+      security: [{ bearerAuth: [] }]
+      summary: List recently viewed products
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /products/{slug}/reviews:
+    get:
+      tags: [Catalog]
+      summary: List published product reviews
+      parameters:
+        - { name: slug, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /search/suggestions:
+    get:
+      tags: [Catalog]
+      summary: Suggest matching products and categories
+      parameters:
+        - { name: q, in: query, required: true, schema: { type: string, minLength: 2, maxLength: 100 } }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /wishlist:
+    get:
+      tags: [Wishlist]
+      security: [{ bearerAuth: [] }]
+      summary: List wishlisted products
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /wishlist/{product_slug}:
+    post:
+      tags: [Wishlist]
+      security: [{ bearerAuth: [] }]
+      summary: Add a visible product to the wishlist
+      parameters:
+        - { name: product_slug, in: path, required: true, schema: { type: string } }
+      responses:
+        '201': { $ref: '#/components/responses/Success' }
+    delete:
+      tags: [Wishlist]
+      security: [{ bearerAuth: [] }]
+      summary: Remove a product from the wishlist
+      parameters:
+        - { name: product_slug, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /reviews/mine:
+    get:
+      tags: [Orders]
+      security: [{ bearerAuth: [] }]
+      summary: List the authenticated customer's reviews
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /reviews/{id}:
+    put:
+      tags: [Orders]
+      security: [{ bearerAuth: [] }]
+      summary: Update an owned review
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [rating]
+              properties:
+                rating: { type: integer, minimum: 1, maximum: 5 }
+                comment: { type: [string, 'null'], maxLength: 2000 }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+    delete:
+      tags: [Orders]
+      security: [{ bearerAuth: [] }]
+      summary: Delete an owned review
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /orders/{order_code}/cancel:
+    post:
+      tags: [Orders]
+      security: [{ bearerAuth: [] }]
+      summary: Cancel an unpaid and undelivered owned order
+      parameters:
+        - { name: order_code, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /orders/{order_code}/retry-payment:
+    post:
+      tags: [Orders]
+      security: [{ bearerAuth: [] }]
+      summary: Retry wallet payment and atomic digital delivery
+      parameters:
+        - { name: order_code, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /orders/{order_code}/refund-request:
+    post:
+      tags: [Orders]
+      security: [{ bearerAuth: [] }]
+      summary: Submit a refund request for a completed paid order
+      parameters:
+        - { name: order_code, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason: { type: string, minLength: 10, maxLength: 2000 }
+      responses:
+        '201': { $ref: '#/components/responses/Success' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /payment-methods:
+    get:
+      tags: [Wallet]
+      security: [{ bearerAuth: [] }]
+      summary: List enabled checkout and top-up methods
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /bank-accounts:
+    get:
+      tags: [Wallet]
+      security: [{ bearerAuth: [] }]
+      summary: List visible deposit bank accounts
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /deposits/bank:
+    get:
+      tags: [Wallet]
+      security: [{ bearerAuth: [] }]
+      summary: List the authenticated customer's bank deposits
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+    post:
+      tags: [Wallet]
+      security: [{ bearerAuth: [] }]
+      summary: Create a bank transfer invoice and QR code
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [bank_account_id, amount]
+              properties:
+                bank_account_id: { type: integer }
+                amount: { type: integer, minimum: 1000, maximum: 1000000000 }
+      responses:
+        '201': { $ref: '#/components/responses/Success' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /deposits/bank/{id}:
+    get:
+      tags: [Wallet]
+      security: [{ bearerAuth: [] }]
+      summary: Get an owned bank deposit invoice
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '404': { description: Deposit not found }
+  /deposits/bank/{id}/status:
+    get:
+      tags: [Wallet]
+      security: [{ bearerAuth: [] }]
+      summary: Poll an owned bank deposit status
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /deposits/bank/{id}/cancel:
+    post:
+      tags: [Wallet]
+      security: [{ bearerAuth: [] }]
+      summary: Cancel an owned pending bank deposit
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /support/messages:
+    get:
+      tags: [Support]
+      security: [{ bearerAuth: [] }]
+      summary: Get the support conversation and latest messages
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+    post:
+      tags: [Support]
+      security: [{ bearerAuth: [] }]
+      summary: Send a support message
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [message]
+              properties:
+                message: { type: string, maxLength: 2000 }
+      responses:
+        '201': { $ref: '#/components/responses/Success' }
+  /support/read:
+    post:
+      tags: [Support]
+      security: [{ bearerAuth: [] }]
+      summary: Mark staff support messages as read
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Sanctum
+  schemas:
+    SuccessEnvelope:
+      type: object
+      required: [success, message, data]
+      properties:
+        success: { type: boolean, const: true }
+        message: { type: string }
+        data: {}
+    RegisterInput:
+      type: object
+      required: [name, email, password, password_confirmation, terms]
+      properties:
+        name: { type: string, maxLength: 120 }
+        email: { type: string, format: email }
+        phone: { type: [string, 'null'] }
+        password: { type: string, format: password }
+        password_confirmation: { type: string, format: password }
+        terms: { type: boolean, const: true }
+    Product:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        slug: { type: string }
+        sku: { type: string }
+        product_type: { type: string }
+        price: { type: integer, description: Integer VND amount }
+        original_price: { type: [integer, 'null'] }
+        stock: { type: integer }
+        rating_average: { type: number }
+    Pagination:
+      type: object
+      properties:
+        current_page: { type: integer }
+        last_page: { type: integer }
+        per_page: { type: integer }
+        total: { type: integer }
+    ErrorEnvelope:
+      type: object
+      required: [success, message, errors]
+      properties:
+        success: { type: boolean, const: false }
+        message: { type: string }
+        errors: { type: object, additionalProperties: true }
+  responses:
+    Success:
+      description: Successful request
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/SuccessEnvelope' }
+    AuthSuccess:
+      description: Authentication successful
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/SuccessEnvelope'
+              - type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      user: { type: object }
+                      token: { type: string }
+                      token_type: { type: string, const: Bearer }
+    ValidationError:
+      description: Validation failed
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    Unauthenticated:
+      description: Missing or invalid bearer token
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }

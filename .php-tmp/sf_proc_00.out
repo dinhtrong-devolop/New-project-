@@ -1,0 +1,26 @@
+
+   PASS  Tests\Feature\AdminPanelTest
+  ✓ admin area requires authentication and admin role                                                            2.20s  
+  ✓ admin can create product and import encrypted inventory                                                      0.04s  
+  ✓ admin can delete available inventory with an audit log                                                       0.35s  
+  ✓ admin cannot delete reserved or sold inventory                                                               3.29s  
+  ✓ admin can bulk delete only eligible inventory atomically                                                     0.03s  
+  ✓ admin can delete a product without archive action                                                            0.23s  
+  ✓ admin cannot delete a product with inventory                                                                 0.02s  
+  ✓ admin can lock customer and adjust wallet with ledger                                                        0.03s  
+  ✓ admin can create and toggle voucher                                                                          0.02s  
+  ✓ admin can securely configure card deposit gateway                                                            0.30s  
+
+   PASS  Tests\Feature\ProductionReadinessTest
+  ✓ products in inactive categories are hidden and cannot be purchased                                           2.46s  
+  ✓ admin cannot create a category parent cycle                                                                  0.02s  
+  ✓ admin cannot change product type after inventory exists                                                      0.02s  
+  ✓ delivered and refunded orders cannot be moved back to processing                                             0.04s  
+  ✓ wallet idempotency key never changes the balance twice                                                       0.02s  
+  ✓ api rejects invalid catalog filters                                                                          0.02s  
+  ✓ payment gateway secret is never serialized                                                                   0.01s  
+  ✓ guest cart merge clamps quantity to available stock                                                          0.63s  
+
+  Tests:    18 passed (95 assertions)
+  Duration: 9.85s
+
